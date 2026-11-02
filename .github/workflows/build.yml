@@ -1,12 +1,18 @@
 name: Compilation LanPulse
 
 # Compile l'application pour Windows, macOS (Apple Silicon et Intel) et Linux.
-# - à chaque lancement manuel (onglet Actions > Run workflow) : installeurs
-#   disponibles dans les « artifacts » du run ;
-# - à chaque tag v* (ex. v0.1.0) : brouillon de release GitHub avec les installeurs.
+# Produit les installeurs ET les versions portables, puis publie une release.
+# - tag v* (ex. v0.1.0) : release GitHub créée avec tous les fichiers ;
+# - lancement manuel (Actions > Run workflow) : champ « tag » optionnel pour
+#   publier aussi une release ; sinon fichiers dans les « artifacts ».
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de release à créer (ex. v0.1.0). Vide = pas de release."
+        required: false
+        default: ""
   push:
     tags: ["v*"]
 
@@ -22,7 +28,7 @@ jobs:
           - platform: macos-latest
             args: "--target aarch64-apple-darwin"
             name: macos-apple-silicon
-          - platform: macos-13
+          - platform: macos-15-intel
             args: "--target x86_64-apple-darwin"
             name: macos-intel
           - platform: ubuntu-22.04
@@ -63,24 +69,51 @@ jobs:
 
       - run: npm install
 
-      - uses: tauri-apps/tauri-action@v0
-        id: tauri
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: ${{ matrix.args }}
-          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
-          releaseName: "LanPulse ${{ github.ref_name }}"
-          releaseDraft: true
+      - name: Compilation Tauri
+        run: npm run build -- ${{ matrix.args }}
+
+      - name: Rassembler les fichiers
+        shell: bash
+        run: |
+          mkdir -p dist
+          B=$(ls -d src-tauri/target/*/release/bundle src-tauri/target/release/bundle 2>/dev/null | head -1)
+          R=$(dirname "$B")
+          case "${{ matrix.name }}" in
+            windows)
+              cp "$B"/msi/*.msi dist/ ; cp "$B"/nsis/*.exe dist/
+              mkdir portable && cp "$R/lanpulse.exe" portable/LanPulse.exe
+              printf 'LanPulse portable.\r\nNecessite Npcap (https://npcap.com) pour la vue par application.\r\nLancer LanPulse.exe (administrateur pour la capture).\r\n' > portable/LISEZMOI.txt
+              (cd portable && 7z a -tzip ../dist/LanPulse_portable_windows_x64.zip .) ;;
+            macos-*)
+              cp "$B"/dmg/*.dmg dist/
+              (cd "$B/macos" && zip -qr "$GITHUB_WORKSPACE/dist/LanPulse_portable_${{ matrix.name }}.app.zip" LanPulse.app) ;;
+            linux)
+              cp "$B"/deb/*.deb dist/ ; cp "$B"/rpm/*.rpm dist/
+              cp "$B"/appimage/*.AppImage dist/LanPulse_portable_linux_x86_64.AppImage ;;
+          esac
+          ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
           name: lanpulse-${{ matrix.name }}
-          path: |
-            src-tauri/target/**/release/bundle/**/*.msi
-            src-tauri/target/**/release/bundle/**/*.exe
-            src-tauri/target/**/release/bundle/**/*.dmg
-            src-tauri/target/**/release/bundle/**/*.deb
-            src-tauri/target/**/release/bundle/**/*.rpm
-            src-tauri/target/**/release/bundle/**/*.AppImage
-          if-no-files-found: warn
+          path: dist/*
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/') || inputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: LanPulse ${{ inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: dist/*

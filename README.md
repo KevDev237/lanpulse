@@ -21,6 +21,29 @@ Seuls des **totaux** sont partagés entre machines (nom de l'appareil, système,
 réseau, débit, totaux par période). Le détail par application et les adresses
 visitées restent sur la machine.
 
+## Aperçu
+
+| Temps réel | Applications |
+|---|---|
+| ![Temps réel](docs/screenshots/live.png) | ![Applications](docs/screenshots/apps.png) |
+| **Réseaux mémorisés** | **Machines du réseau (suivi en commun)** |
+| ![Réseaux](docs/screenshots/networks.png) | ![Machines](docs/screenshots/peers.png) |
+| **Personnes** | **Réglages et quotas** |
+| ![Personnes](docs/screenshots/persons.png) | ![Réglages](docs/screenshots/settings.png) |
+
+*Captures en mode démonstration (données fictives).*
+
+## Téléchargement
+
+Rendez-vous dans les [**Releases**](../../releases/latest) :
+
+| Système | Installeur | Version portable (sans installation) |
+|---|---|---|
+| Windows | `.msi` ou `-setup.exe` | `LanPulse_portable_windows_x64.zip` (extraire, lancer `LanPulse.exe`) |
+| macOS | `.dmg` (Apple Silicon et Intel) | `LanPulse_portable_macos-*.app.zip` |
+| Linux | `.deb`, `.rpm` | `LanPulse_portable_linux_x86_64.AppImage` (`chmod +x` puis lancer) |
+
+
 ## Architecture
 
 ```
@@ -36,9 +59,11 @@ src-tauri/src/
   state.rs               État partagé
 ```
 
-**Identifiant du réseau.** Il est dérivé de l'adresse MAC de la passerelle :
+**Identifiant du réseau.** Il est dérivé de l'adresse MAC de la passerelle (le routeur ou la box du réseau) :
 deux machines branchées sur le même routeur obtiennent le même identifiant,
 même si le SSID n'est pas lisible (macOS récent, réseau filaire).
+
+**Mise à jour entre machines.** À chaque annonce reçue, les totaux de la machine émettrice sont écrits dans la base locale du récepteur : toutes les machines d'un même réseau convergent vers les mêmes chiffres.
 
 **Découverte des pairs.** Toutes les 5 s, chaque instance envoie une annonce
 JSON en broadcast UDP (port 47321). Une machine est « en ligne » si elle s'est
@@ -77,10 +102,12 @@ elle affiche alors des données de démonstration.
 Le workflow `.github/workflows/build.yml` compile Windows (.msi, .exe),
 macOS Apple Silicon et Intel (.dmg) et Linux (.deb, .rpm, .AppImage).
 
-1. Pousser le projet sur GitHub.
-2. Onglet **Actions** > **Compilation LanPulse** > **Run workflow** :
-   les installeurs sont dans les *artifacts* du run.
-3. Ou créer un tag (`git tag v0.1.0 && git push --tags`) : une release brouillon est créée.
+Il produit les installeurs **et** les versions portables.
+
+1. Onglet **Actions** > **Compilation LanPulse** > **Run workflow** :
+   les fichiers sont dans les *artifacts* du run. Renseigner le champ `tag`
+   (ex. `v0.1.0`) publie aussi une release.
+2. Ou pousser un tag (`git tag v0.1.0 && git push --tags`) : la release est créée automatiquement.
 
 ## Activer la vue par application
 
