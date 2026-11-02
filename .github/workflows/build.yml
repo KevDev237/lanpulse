@@ -1,0 +1,86 @@
+name: Compilation LanPulse
+
+# Compile l'application pour Windows, macOS (Apple Silicon et Intel) et Linux.
+# - à chaque lancement manuel (onglet Actions > Run workflow) : installeurs
+#   disponibles dans les « artifacts » du run ;
+# - à chaque tag v* (ex. v0.1.0) : brouillon de release GitHub avec les installeurs.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            args: ""
+            name: windows
+          - platform: macos-latest
+            args: "--target aarch64-apple-darwin"
+            name: macos-apple-silicon
+          - platform: macos-13
+            args: "--target x86_64-apple-darwin"
+            name: macos-intel
+          - platform: ubuntu-22.04
+            args: ""
+            name: linux
+    runs-on: ${{ matrix.platform }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dépendances Linux
+        if: matrix.name == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf libpcap-dev
+
+      - name: SDK Npcap (Windows)
+        if: matrix.name == 'windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest https://npcap.com/dist/npcap-sdk-1.15.zip -OutFile npcap-sdk.zip
+          Expand-Archive npcap-sdk.zip -DestinationPath npcap-sdk
+          "LIB=$env:GITHUB_WORKSPACE\npcap-sdk\Lib\x64" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "LIBPCAP_LIBDIR=$env:GITHUB_WORKSPACE\npcap-sdk\Lib\x64" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ startsWith(matrix.platform, 'macos') && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - run: npm install
+
+      - uses: tauri-apps/tauri-action@v0
+        id: tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: ${{ matrix.args }}
+          tagName: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+          releaseName: "LanPulse ${{ github.ref_name }}"
+          releaseDraft: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lanpulse-${{ matrix.name }}
+          path: |
+            src-tauri/target/**/release/bundle/**/*.msi
+            src-tauri/target/**/release/bundle/**/*.exe
+            src-tauri/target/**/release/bundle/**/*.dmg
+            src-tauri/target/**/release/bundle/**/*.deb
+            src-tauri/target/**/release/bundle/**/*.rpm
+            src-tauri/target/**/release/bundle/**/*.AppImage
+          if-no-files-found: warn

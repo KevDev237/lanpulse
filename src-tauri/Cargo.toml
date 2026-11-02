@@ -1,0 +1,44 @@
+[package]
+name = "lanpulse"
+version = "0.1.0"
+description = "LanPulse - suivi de la consommation réseau partagé sur le réseau local"
+authors = ["NGOUANA FAUMETE Etienne Yvan"]
+edition = "2021"
+
+[lib]
+name = "lanpulse_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[features]
+default = ["capture"]
+# Capture des paquets (couches 3 et 4) pour le débit par application.
+# Nécessite libpcap (Linux/macOS) ou Npcap (Windows).
+capture = ["dep:pcap", "dep:netstat2"]
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sysinfo = { version = "0.37", default-features = false, features = ["network", "system"] }
+netdev = "0.37"
+rusqlite = { version = "0.37", features = ["bundled"] }
+chrono = "0.4"
+uuid = { version = "1", features = ["v4"] }
+gethostname = "1"
+socket2 = { version = "0.6", features = ["all"] }
+pcap = { version = "2", optional = true }
+netstat2 = { version = "0.11", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.60", features = ["Win32_System_LibraryLoader", "Win32_Foundation"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

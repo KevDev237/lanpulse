@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LanPulse</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><polyline points="8,55 30,55 40,28 52,78 62,40 70,55 92,55" /></svg>
+      <span>LanPulse</span>
+    </div>
+    <nav>
+      <button data-view="live" class="active">Temps réel</button>
+      <button data-view="apps">Applications</button>
+      <button data-view="networks">Réseaux</button>
+      <button data-view="peers">Machines <span id="nav-peers" class="pill hidden"></span></button>
+      <button data-view="persons">Personnes</button>
+      <button data-view="settings">Réglages</button>
+    </nav>
+    <div class="side-foot">
+      <div class="dot-line"><span id="foot-dot" class="dot"></span><span id="foot-net">Détection…</span></div>
+      <div id="foot-device" class="muted small"></div>
+    </div>
+  </aside>
+
+  <main>
+    <!-- TEMPS RÉEL -->
+    <section id="view-live" class="view active">
+      <header class="page-head">
+        <div>
+          <p class="eyebrow" id="net-kind">Réseau</p>
+          <h1 id="net-name">Détection du réseau…</h1>
+          <p class="muted small" id="net-meta"></p>
+        </div>
+        <div class="rates">
+          <div class="rate down"><span class="arrow">↓</span><b id="rate-rx">0 o/s</b><small>réception</small></div>
+          <div class="rate up"><span class="arrow">↑</span><b id="rate-tx">0 o/s</b><small>envoi</small></div>
+        </div>
+      </header>
+
+      <div id="capture-banner" class="banner hidden"></div>
+
+      <div class="card chart-card">
+        <div class="card-head">
+          <h2>Débit sur les 5 dernières minutes</h2>
+          <div class="legend"><span class="sw rx"></span>Réception <span class="sw tx"></span>Envoi</div>
+        </div>
+        <canvas id="live-chart"></canvas>
+      </div>
+
+      <div class="grid4" id="totals"></div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-head"><h2>Applications en ce moment</h2></div>
+          <div id="live-apps" class="rows"></div>
+        </div>
+        <div class="card">
+          <div class="card-head"><h2>Protocoles (couches 3 et 4)</h2></div>
+          <div id="live-protos" class="rows"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- APPLICATIONS -->
+    <section id="view-apps" class="view">
+      <header class="page-head">
+        <div><p class="eyebrow">Gestion de ma consommation</p><h1>Applications</h1></div>
+        <div class="controls">
+          <div class="seg" id="apps-period">
+            <button data-v="day" class="on">Jour</button><button data-v="week">Semaine</button><button data-v="month">Mois</button>
+          </div>
+          <div class="seg" id="apps-scope">
+            <button data-v="current" class="on">Ce réseau</button><button data-v="all">Tous</button>
+          </div>
+        </div>
+      </header>
+      <div class="card"><div id="apps-table" class="rows big"></div></div>
+    </section>
+
+    <!-- RÉSEAUX -->
+    <section id="view-networks" class="view">
+      <header class="page-head">
+        <div><p class="eyebrow">Wi-Fi et réseaux mémorisés</p><h1>Réseaux</h1></div>
+      </header>
+      <div class="grid2 wide-left">
+        <div id="networks-list" class="stack"></div>
+        <div class="card sticky">
+          <div class="card-head"><h2 id="hist-title">Consommation des 14 derniers jours</h2>
+            <div class="legend"><span class="sw rx"></span>Réception <span class="sw tx"></span>Envoi</div></div>
+          <canvas id="hist-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- MACHINES -->
+    <section id="view-peers" class="view">
+      <header class="page-head">
+        <div><p class="eyebrow">Suivi en commun</p><h1>Machines du réseau</h1>
+          <p class="muted small" id="peers-sub"></p></div>
+        <div class="seg period-seg" data-target="peers">
+          <button data-v="session" class="on">Dernière connexion</button><button data-v="day">Jour</button><button data-v="week">Semaine</button><button data-v="month">Mois</button>
+        </div>
+      </header>
+      <div id="peers-grid" class="cards"></div>
+      <details class="card other" id="peers-other-wrap">
+        <summary>Machines vues sur d'autres réseaux</summary>
+        <div id="peers-other" class="cards"></div>
+      </details>
+    </section>
+
+    <!-- PERSONNES -->
+    <section id="view-persons" class="view">
+      <header class="page-head">
+        <div><p class="eyebrow">Regrouper plusieurs appareils</p><h1>Personnes</h1>
+          <p class="muted small">Totaux sur le réseau actuel, cumulés pour tous les appareils de la personne.</p></div>
+        <div class="seg period-seg" data-target="persons">
+          <button data-v="day" class="on">Jour</button><button data-v="week">Semaine</button><button data-v="month">Mois</button>
+        </div>
+      </header>
+      <form id="person-form" class="card inline-form">
+        <input id="person-name" placeholder="Nom de la personne (ex. Yvan)" maxlength="60" />
+        <button class="primary" type="submit">Ajouter</button>
+      </form>
+      <div id="persons-list" class="cards"></div>
+      <div class="card">
+        <div class="card-head"><h2>Appareils non regroupés</h2></div>
+        <div id="unassigned" class="rows"></div>
+      </div>
+    </section>
+
+    <!-- RÉGLAGES -->
+    <section id="view-settings" class="view">
+      <header class="page-head"><div><p class="eyebrow">Cette machine</p><h1>Réglages</h1></div></header>
+      <div class="card">
+        <label class="field">Nom affiché aux autres machines
+          <div class="inline-form"><input id="device-name" maxlength="64" /><button class="primary" id="save-name">Enregistrer</button></div>
+        </label>
+        <p class="muted small">Identifiant de l'appareil : <code id="device-id"></code></p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Capture par application</h2></div>
+        <p id="capture-detail"></p>
+        <div class="help">
+          <p><b>Windows</b> : installer <a href="https://npcap.com" target="_blank">Npcap</a>, puis lancer LanPulse en administrateur.</p>
+          <p><b>macOS</b> : lancer avec <code>sudo</code>, ou installer « ChmodBPF » (fourni avec Wireshark) pour autoriser la capture sans sudo.</p>
+          <p><b>Linux</b> : <code>sudo setcap cap_net_raw,cap_net_admin=eip /usr/bin/lanpulse</code> puis relancer.</p>
+          <p class="muted small">Sans capture, LanPulse mesure quand même le débit total de la machine, l'historique, les réseaux et le partage entre machines.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Partage sur le réseau local</h2></div>
+        <p class="small">LanPulse diffuse toutes les 5 secondes, sur le port UDP <code>47321</code>, le nom de cette machine, son système, le réseau et ses totaux de consommation. Aucun contenu de navigation, aucune application ni adresse visitée n'est partagé.</p>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="app.js"></script>
+</body>
+</html>
